@@ -6,6 +6,8 @@ class CustomUserManager(BaseUserManager):
     def create_user(self, email, phone, password=None, **extra_fields):
         if not email:
             raise ValueError('Email manzili kiriting')
+        if not phone:
+            raise ValueError('Telefon raqam kiriting')
         email = self.normalize_email(email)
         user = self.model(email=email, phone=phone, **extra_fields)
         user.set_password(password)
@@ -21,7 +23,6 @@ class CustomUserManager(BaseUserManager):
 
 class CustomUser(AbstractBaseUser):
     email = models.EmailField(unique=True)
-    username = models.CharField(max_length=30, unique=True)
     phone = models.CharField(max_length=12, unique=True)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -35,7 +36,7 @@ class CustomUser(AbstractBaseUser):
     objects = CustomUserManager()
 
     def __str__(self):
-        return self.username
+        return self.email
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"

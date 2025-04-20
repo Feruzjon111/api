@@ -1,4 +1,5 @@
 from rest_framework import status, permissions
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
@@ -14,14 +15,22 @@ class RegisterAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+from rest_framework.authtoken.models import Token
+
 class LoginAPIView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.validated_data
+            user = serializer.validated_data['user']
             login(request, user)
-            return Response({"message": "Muvaffaqiyatli kirildi!!!"}, status=status.HTTP_200_OK)
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({
+                "message": "Muvaffaqiyatli kirildi!",
+                "token": token.key
+            }, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class LogoutAPIView(APIView):
@@ -46,15 +55,23 @@ class ProfileUpdateAPIView(APIView):
 
     def put(self, request):
         user = request.user
+        serializer = UserSerializer(user, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Ma'lumotlar to'liq yangilandi"}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request):
+        user = request.user
         serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response({"message": "Malumotlar yangilandi"}, status=status.HTTP_200_OK)
+            return Response({"message": "Ma'lumotlar qisman yangilandi"}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProfileDeleteAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def delete(self, request):
         user = request.user
