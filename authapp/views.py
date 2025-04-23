@@ -1,14 +1,14 @@
 import datetime
 import random
 import uuid
-from methodism import METHODISM
+from methodism import METHODISM, custom_response, MESSAGE
 from rest_framework import status, permissions
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
-from .models import OTP
+from .models import OTP, CustomUser
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
 from authapp import methods
 
@@ -39,6 +39,14 @@ from rest_framework.authtoken.models import Token
 
 class LoginAPIView(APIView):
     def post(self, request):
+        data = request.data
+        user = CustomUser.objects.filter(phone=data['phone']).first()
+        if not user:
+            return custom_response(False, message=MESSAGE['UserPasswordError'])
+        if not user.check_password(data['password']):
+            return ({
+                "Error": "Xato password kiritingiz"
+            })
         serializer = LoginSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.validated_data['user']
