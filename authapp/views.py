@@ -1,9 +1,29 @@
+import datetime
+import random
+import uuid
+from methodism import METHODISM
 from rest_framework import status, permissions
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
+from .models import OTP
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
+from authapp import methods
+
+
+class Main(METHODISM):
+    file = methods
+    token_key = "Token"
+    not_auth_methods = ['register', 'login']
+
+
+
+
+
+
+
 
 
 class RegisterAPIView(APIView):
@@ -77,3 +97,73 @@ class ProfileDeleteAPIView(APIView):
         user = request.user
         user.delete()
         return Response({"message": "Akkount o'chirildi"}, status=status.HTTP_200_OK)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    def post(self, request):
+        user = request.user
+        old = request.data.get("old")
+        new = request.data.get("new")
+        confirm = request.data.get("confirm")
+
+        if not user.check_password(old):
+            return Response({"error": "Hozirgi parolni to'g'ri kiriting."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if new != confirm:
+            return Response({"error": "New password va confirm password mos kelmadi."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if old == new:
+            return Response({"error": "hozirgi password va yangi password bir xil bolishi mumkin emas."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new)
+        user.save()
+
+        return Response({"success": "Password muvaffaqiyatli o'zgartirildi."}, status=status.HTTP_200_OK)
+
+
+class AuthOne(APIView):
+    def post(self, request):
+        data = request.data
+        if not data['phone']:
+            return Response({
+                'error': "To'g'ri malumot kiritilmagan"
+            })
+
+        if len(str(data['phone'])) != 12 or not isinstance(data['phone'], int) or str(data['phone'])[:3] != '998':
+            return Response({
+                'error': "Telefon raqami noto'g'ri kiritildi"
+            })
+
+        code = ''.join([str(random.randint(1,9999))[-1] for _ in range(4)])
+        key = uuid.uuid4().__str__() + code
+        otp = OTP.objects.create(phone=data['phone'], key=key)
+
+        return Response({
+            'otp': code,
+            'token': otp.key
+        })
+
+
+class AuthTwo(APIView):
+    def post(self, request):
+        data = request.data
+        if not data['code'] or not data['key']:
+            return Response({
+                "error": "Siz to'liq malumot kiritmadingiz"
+            })
+        otp = OTP.objects.filter(key=data['key']).first()
+
+        if not otp:
+            return Response({
+                "Error": "Xato key"
+            })
+
+        now = datetime.datetime.now()
+        return Response({
+            "message": True
+        })
+
+
