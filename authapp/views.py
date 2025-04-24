@@ -1,5 +1,6 @@
 import datetime
 import random
+import re
 import uuid
 from methodism import METHODISM, custom_response, MESSAGE
 from rest_framework import status, permissions
@@ -8,6 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.contrib.auth import authenticate, login, logout
+
+from .methods.helper import send_code
 from .models import OTP, CustomUser
 from .serializers import UserSerializer, RegisterSerializer, LoginSerializer
 from authapp import methods
@@ -131,10 +134,17 @@ class ChangePasswordView(APIView):
 
         return Response({"success": "Password muvaffaqiyatli o'zgartirildi."}, status=status.HTTP_200_OK)
 
+EMAIL_REGEX = re.compile(r'^[\w\.-]+@[\w\.-]+\.\w+$')
 
 class AuthOne(APIView):
     def post(self, request):
         data = request.data
+        email = data.get('email')
+        phone = data.get('phone')
+
+        if not email and not phone:
+            return Response({'error': "Kamida telefon yoki email kiriting"}, status=400)
+
         if not data['phone']:
             return Response({
                 'error': "To'g'ri malumot kiritilmagan"
@@ -145,9 +155,25 @@ class AuthOne(APIView):
                 'error': "Telefon raqami noto'g'ri kiritildi"
             })
 
+        is_email = isinstance(email, str) and EMAIL_REGEX.match(email)
+        is_phone = isinstance(phone, int) or (isinstance(phone, str) and phone.isdigit())
+
+        if email and not is_email:
+            return Response({'error': "Email formati noto‘g‘ri"}, status=400)
+
+
+
         code = ''.join([str(random.randint(1,9999))[-1] for _ in range(4)])
         key = uuid.uuid4().__str__() + code
+        # send_to_mail(request, 'feruzjonmuzaffarov1209@gmail.com', int(code))
+
+        if is_email:
+            send_code(email, code)
+
+        if is_phone:
+            send_code(phone, code)
         otp = OTP.objects.create(phone=data['phone'], key=key)
+
 
         return Response({
             'otp': code,

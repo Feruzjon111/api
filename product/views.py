@@ -1,5 +1,5 @@
 from rest_framework import generics
-from .models import Noutbooks
+from product.models.models import Noutbooks
 from .serializers import NoutbooksSerializer
 
 class NoutbookListCreateView(generics.ListCreateAPIView):
