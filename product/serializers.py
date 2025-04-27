@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from product.models.models import Noutbooks
+from product.models.product import Noutbooks
 
 class NoutbooksSerializer(serializers.ModelSerializer):
     class Meta:
